@@ -6,6 +6,7 @@ import { SocketManager } from './lib/socket.js';
 import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
+import { GatewayIntentBits } from 'discord.js';
 
 dotenv.config();
 
@@ -21,7 +22,13 @@ app.use((req, res, next) => {
 });
 
 const presenceManager = new PresenceManager();
-const bot = new DiscordBot(process.env.DISCORD_TOKEN);
+const intents = [
+  GatewayIntentBits.Guilds,
+  GatewayIntentBits.GuildMembers,
+  GatewayIntentBits.GuildPresences,
+  GatewayIntentBits.Presences
+];
+const bot = new DiscordBot(process.env.DISCORD_TOKEN, intents, presenceManager);
 const apiManager = new ApiManager(presenceManager);
 const server = app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);

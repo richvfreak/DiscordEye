@@ -2,17 +2,14 @@ import { Client, GatewayIntentBits } from 'discord.js';
 import { EventEmitter } from 'events';
 
 export class DiscordBot extends EventEmitter {
-  constructor(token) {
+  constructor(token, intents) {
     super();
     this.token = token;
+    this.intents = intents;
     this.client = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildPresences,
-        GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-      ]
+      intents: this.intents,
+      fetchAllMembers: true,
+      restRequestTimeout: 60000
     });
 
     this.setupEventHandlers();
