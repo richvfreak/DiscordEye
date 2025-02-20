@@ -141,16 +141,25 @@ export class DiscordBot extends EventEmitter {
   async updatePresence(oldPresence, newPresence) {
     try {
       const userId = newPresence.userId || newPresence.user?.id;
-      console.log('Atualizando presença para userId:', userId);
-      console.log('Dados de newPresence recebidos:', JSON.stringify(newPresence, null, 2));
+      console.log('DEBUG: Atualizando presença para userId:', userId);
+      console.log('DEBUG: Dados de newPresence recebidos:', JSON.stringify(newPresence, null, 2));
 
+      // Se não temos o userId, não podemos continuar
       if (!userId) {
-        console.error('Não foi possível identificar o ID do usuário');
+        console.error('ERRO: Não foi possível identificar o ID do usuário');
         return;
       }
 
       const user = await this.client.users.fetch(userId);
-      console.log('Dados do usuário Discord completos:', JSON.stringify(user, null, 2));
+      console.log('DEBUG: Dados do usuário Discord completos:', JSON.stringify({
+        id: user.id,
+        username: user.username,
+        discriminator: user.discriminator,
+        globalName: user.globalName,
+        displayName: user.displayName,
+        tag: user.tag,
+        avatar: user.avatar
+      }, null, 2));
 
       const presenceData = {
         userId: userId,
@@ -167,10 +176,10 @@ export class DiscordBot extends EventEmitter {
         clientStatus: newPresence.clientStatus
       };
 
-      console.log('Dados de presença a serem enviados:', JSON.stringify(presenceData, null, 2));
+      console.log('DEBUG: Dados de presença a serem enviados:', JSON.stringify(presenceData, null, 2));
       this.presenceManager.updatePresence(presenceData);
     } catch (error) {
-      console.error('Erro ao atualizar presença:', error);
+      console.error('ERRO ao atualizar presença:', error);
     }
   }
 
