@@ -12,6 +12,14 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Configuração CORS
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    next();
+});
+
 const presenceManager = new PresenceManager();
 const bot = new DiscordBot(process.env.DISCORD_TOKEN);
 const apiManager = new ApiManager(presenceManager);

@@ -1,19 +1,18 @@
 import { Server } from 'socket.io';
 
 export class SocketManager {
-  constructor(presenceManager) {
+  constructor(server, presenceManager) {
+    this.io = new Server(server, {
+      cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+      }
+    });
     this.presenceManager = presenceManager;
     this.subscriptions = new Map();
   }
 
-  attach(server) {
-    this.io = new Server(server, {
-      cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-      }
-    });
-
+  attach() {
     this.io.on('connection', (socket) => {
       console.log('Cliente conectado:', socket.id);
 
