@@ -6,15 +6,29 @@ export class PresenceManager extends EventEmitter {
     this.presences = new Map();
   }
 
-  updatePresence(presence) {
-    if (!presence || !presence.userId) {
-      console.log('Presença inválida recebida:', presence);
-      return;
-    }
+  updatePresence(newPresence) {
+    const userId = newPresence.userId;
+    const currentPresence = this.presences.get(userId) || {};
 
-    console.log('Atualizando presença para usuário:', presence.userId);
-    this.presences.set(presence.userId, presence);
-    this.emit('presenceUpdate', presence);
+    const updatedPresence = {
+      userId: userId,
+      username: newPresence.user?.username || currentPresence.username,
+      discriminator: newPresence.user?.discriminator || currentPresence.discriminator,
+      globalName: newPresence.user?.globalName || currentPresence.globalName,
+      displayName: newPresence.user?.displayName || currentPresence.displayName,
+      avatar: newPresence.user?.avatarURL() || currentPresence.avatar,
+      status: newPresence.status || currentPresence.status,
+      activities: newPresence.activities || currentPresence.activities || [],
+      
+      // Novos campos
+      activeOnWeb: newPresence.clientStatus?.web === 'online',
+      activeOnDesktop: newPresence.clientStatus?.desktop === 'online',
+      activeOnMobile: newPresence.clientStatus?.mobile === 'online',
+      listeningToSpotify: newPresence.activities?.some(activity => activity.name === 'Spotify')
+    };
+
+    this.presences.set(userId, updatedPresence);
+    this.emit('presenceUpdate', updatedPresence);
   }
 
   getPresence(userId) {
@@ -35,5 +49,9 @@ export class PresenceManager extends EventEmitter {
 
   getAllPresences() {
     return Array.from(this.presences.values());
+  }
+
+  getAllPresences(userIds) {
+    return userIds.map(userId => this.presences.get(userId)).filter(Boolean);
   }
 }
