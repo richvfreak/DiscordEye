@@ -22,13 +22,13 @@ const io = new Server(server, {
   }
 });
 
-// Configuração correta e explícita dos Intents
+// Valores numéricos explícitos para intents
 const intents = [
-  GatewayIntentBits.Guilds,
-  GatewayIntentBits.GuildMembers,
-  GatewayIntentBits.GuildPresences,
-  GatewayIntentBits.Presences
-].map(intent => intent.valueOf());
+  1,      // Guilds
+  2,      // GuildMembers
+  256,    // GuildPresences
+  512     // Presences
+];
 
 console.log('Intents configurados:', intents);
 
