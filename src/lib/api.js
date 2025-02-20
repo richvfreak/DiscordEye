@@ -20,31 +20,38 @@ export class ApiManager {
           });
         }
 
+        const spotifyActivity = presenceData.activities?.find(
+          activity => activity.name === 'Spotify'
+        );
+
         const response = {
+          success: true,
           data: {
-            kv: {},
-            discord_user: {
-              id: presenceData.userId,
-              username: presenceData.username || '',
-              avatar: presenceData.avatar || '',
-              discriminator: presenceData.discriminator || '0',
-              clan: null,
-              avatar_decoration_data: null,
-              bot: false,
-              global_name: presenceData.globalName || '',
-              primary_guild: null,
-              display_name: presenceData.displayName || '',
-              public_flags: 0
-            },
-            activities: presenceData.activities || [],
-            discord_status: presenceData.status || 'offline',
-            active_on_discord_web: presenceData.activeOnWeb || false,
-            active_on_discord_desktop: presenceData.activeOnDesktop || false,
             active_on_discord_mobile: presenceData.activeOnMobile || false,
-            listening_to_spotify: presenceData.listeningToSpotify || false,
-            spotify: null
-          },
-          success: true
+            active_on_discord_desktop: presenceData.activeOnDesktop || false,
+            active_on_discord_web: presenceData.activeOnWeb || false,
+            listening_to_spotify: !!spotifyActivity,
+            kv: {}, // Placeholder para dados personalizados
+            spotify: spotifyActivity ? {
+              track_id: spotifyActivity.sync_id,
+              timestamps: spotifyActivity.timestamps,
+              song: spotifyActivity.details,
+              artist: spotifyActivity.state,
+              album_art_url: spotifyActivity.assets?.large_image,
+              album: spotifyActivity.assets?.large_text
+            } : null,
+            discord_user: {
+              username: presenceData.username || '',
+              discriminator: presenceData.discriminator || '0000',
+              id: presenceData.userId,
+              avatar: presenceData.avatar,
+              public_flags: 0, // Placeholder
+              global_name: presenceData.globalName,
+              display_name: presenceData.displayName
+            },
+            discord_status: presenceData.status || 'offline',
+            activities: presenceData.activities || []
+          }
         };
 
         res.json(response);
