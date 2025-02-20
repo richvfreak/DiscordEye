@@ -22,24 +22,24 @@ const io = new Server(server, {
   }
 });
 
-// Configuração correta dos Intents
+// Configuração correta e explícita dos Intents
 const intents = [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMembers,
   GatewayIntentBits.GuildPresences,
   GatewayIntentBits.Presences
-];
+].map(intent => intent.valueOf());
+
+console.log('Intents configurados:', intents);
 
 const presenceManager = new PresenceManager();
 const apiManager = new ApiManager(presenceManager);
 const bot = new DiscordBot(process.env.DISCORD_TOKEN, intents, presenceManager);
 
-// Configurações do Express e CORS
 app.use(cors());
 app.use(express.json());
 app.use('/api', apiManager.getRouter());
 
-// Configuração do Socket.IO
 io.on('connection', (socket) => {
   console.log('Novo cliente conectado');
   
@@ -55,7 +55,6 @@ bot.on('presenceUpdate', (oldPresence, newPresence) => {
 const swaggerDocument = YAML.load('./swagger.yaml');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// Inicialização do bot e servidor
 async function startServer() {
   try {
     await bot.start();

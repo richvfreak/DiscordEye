@@ -5,10 +5,23 @@ export class DiscordBot extends EventEmitter {
   constructor(token, intents, presenceManager) {
     super();
     this.token = token;
-    this.intents = intents;
-    this.presenceManager = presenceManager;
     
-    console.log('Intents configurados:', this.intents);
+    // Converter intents para BitField
+    this.intents = intents.map(intent => {
+      // Se já for um número, retornar direto
+      if (typeof intent === 'number') return intent;
+      
+      // Se for um intent do GatewayIntentBits, converter para número
+      if (typeof intent === 'object' && intent.valueOf) {
+        return intent.valueOf();
+      }
+      
+      return intent;
+    });
+
+    console.log('Intents processados:', this.intents);
+    
+    this.presenceManager = presenceManager;
     
     this.client = new Client({ 
       intents: this.intents,
