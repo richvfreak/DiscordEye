@@ -1,0 +1,47 @@
+openapi: 3.0.0
+info:
+  title: Simple Lanyard API
+  description: API simplificada para expor status do Discord
+  version: 1.0.0
+servers:
+  - url: http://localhost:3000
+    description: Servidor de desenvolvimento
+paths:
+  /api/users/{userId}:
+    get:
+      summary: Obtém o status de um usuário
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: ID do usuário do Discord
+      responses:
+        '200':
+          description: Status do usuário encontrado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  status:
+                    type: string
+                    enum: [online, idle, dnd, offline]
+                  activities:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        type:
+                          type: string
+                        details:
+                          type: string
+                        state:
+                          type: string
+        '404':
+          description: Usuário não encontrado
