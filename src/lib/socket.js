@@ -8,34 +8,47 @@ export class SocketManager {
         methods: ["GET", "POST"]
       }
     });
+    
     this.presenceManager = presenceManager;
     this.subscriptions = new Map();
+
+    this.setupSocketHandlers();
   }
 
-  attach() {
+  setupSocketHandlers() {
     this.io.on('connection', (socket) => {
       console.log('Cliente conectado:', socket.id);
 
       socket.on('subscribe', (userId) => {
-        console.log(`Cliente ${socket.id} inscrito para usuário ${userId}`);
-        this.subscriptions.set(socket.id, userId);
-      });
-
-      socket.on('subscribe_bulk', (userIds) => {
-        if (Array.isArray(userIds)) {
-          console.log(`Cliente ${socket.id} inscrito para usuários:`, userIds);
-          this.subscriptions.set(socket.id, userIds);
+        console.log('Subscription request for user:', userId);
+        if (!this.subscriptions.has(userId)) {
+          this.subscriptions.set(userId, new Set());
         }
+        this.subscriptions.get(userId).add(socket.id);
       });
 
       socket.on('disconnect', () => {
         console.log('Cliente desconectado:', socket.id);
-        this.subscriptions.delete(socket.id);
+        this.subscriptions.forEach((sockets, userId) => {
+          sockets.delete(socket.id);
+          if (sockets.size === 0) {
+            this.subscriptions.delete(userId);
+          }
+        });
       });
     });
 
-    this.presenceManager.on('presenceUpdate', (presence) => {
-      this.io.emit('presenceUpdate', presence);
-    });
+    // Escutar atualizações de presença
+    if (this.presenceManager) {
+      this.presenceManager.on('presenceUpdate', (presence) => {
+        const userId = presence.userId;
+        const subscribers = this.subscriptions.get(userId);
+        if (subscribers) {
+          subscribers.forEach(socketId => {
+            this.io.to(socketId).emit('presenceUpdate', presence);
+          });
+        }
+      });
+    }
   }
 }

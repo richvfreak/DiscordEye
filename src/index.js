@@ -23,7 +23,10 @@ app.use((req, res, next) => {
 const presenceManager = new PresenceManager();
 const bot = new DiscordBot(process.env.DISCORD_TOKEN);
 const apiManager = new ApiManager(presenceManager);
-const socketManager = new SocketManager(presenceManager);
+const server = app.listen(port, () => {
+  console.log(`Servidor rodando na porta ${port}`);
+});
+const socketManager = new SocketManager(server, presenceManager);
 
 bot.on('presenceUpdate', (oldPresence, newPresence) => {
   presenceManager.updatePresence(newPresence);
@@ -35,7 +38,6 @@ app.use('/api', apiManager.getRouter());
 const swaggerDocument = YAML.load('./swagger.yaml');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-socketManager.attach(app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
-  bot.start();
-}));
+bot.login().then(() => {
+    console.log('Bot logado com sucesso');
+});

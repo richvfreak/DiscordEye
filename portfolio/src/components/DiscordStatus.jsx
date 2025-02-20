@@ -11,7 +11,11 @@ function DiscordStatus() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const socket = io('wss://discord-presence-api.onrender.com');
+        const socket = io('wss://discord-presence-api.onrender.com', {
+            transports: ['websocket'],
+            upgrade: false,
+            withCredentials: false
+        });
         
         socket.on('connect', () => {
             setIsConnected(true);
@@ -36,9 +40,10 @@ function DiscordStatus() {
         });
 
         // Carregar status inicial
-        fetch('https://discord-presence-api.onrender.com/api/users/399547557883281419')
+        fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://discord-presence-api.onrender.com/api/users/399547557883281419'))
             .then(res => res.json())
-            .then(data => {
+            .then(response => {
+                const data = JSON.parse(response.contents);
                 setStatus(data.status);
                 setActivity(data.activities?.[0]);
                 setError(null);
