@@ -7,6 +7,8 @@ Uma API simples para obter status e atividades de usuários do Discord em tempo 
 
 ## 🚀 Como Usar
 
+Entre no servidor para retornar os resultados à API: https://discord.gg/H6mAW8BCyx
+
 ### Endpoint HTTP
 ```javascript
 fetch('https://discord-presence-api.onrender.com/api/users/ID_DO_USUARIO')
