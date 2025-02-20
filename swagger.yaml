@@ -4,7 +4,7 @@ info:
   description: API simplificada para expor status do Discord
   version: 1.0.0
 servers:
-  - url: http://localhost:3000
+  - url: http://localhost:3001
     description: Servidor de desenvolvimento
 paths:
   /api/users/{userId}:
