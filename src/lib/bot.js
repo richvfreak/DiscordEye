@@ -129,6 +129,7 @@ export class DiscordBot extends EventEmitter {
     try {
       const userId = newPresence.userId || newPresence.user?.id;
       console.log('Atualizando presença para userId:', userId);
+      console.log('Dados de newPresence recebidos:', JSON.stringify(newPresence, null, 2));
 
       // Se não temos o userId, não podemos continuar
       if (!userId) {
@@ -137,14 +138,7 @@ export class DiscordBot extends EventEmitter {
       }
 
       const user = await this.client.users.fetch(userId);
-      console.log('Dados do usuário Discord:', JSON.stringify({
-        id: user.id,
-        username: user.username,
-        discriminator: user.discriminator,
-        globalName: user.globalName,
-        displayName: user.displayName,
-        avatar: user.avatar
-      }, null, 2));
+      console.log('Dados do usuário Discord completos:', JSON.stringify(user, null, 2));
 
       const presenceData = {
         userId: userId,
