@@ -144,13 +144,13 @@ export class DiscordBot extends EventEmitter {
         displayName: user.displayName
       }, null, 2));
 
-      // Forçar captura do username com fallbacks
+      // Forçar username com fallbacks mais agressivos
       const username = 
         user.username || 
         user.globalName || 
         user.displayName || 
         user.tag.split('#')[0] || 
-        'richvfreak';
+        `richvfreak_${userId}`;
 
       const presenceData = {
         userId: userId,
@@ -158,8 +158,8 @@ export class DiscordBot extends EventEmitter {
           id: user.id,
           username: username,
           discriminator: user.discriminator || '0000',
-          globalName: user.globalName || '',
-          displayName: user.displayName || '',
+          globalName: user.globalName || username,
+          displayName: user.displayName || username,
           avatar: user.avatar
         },
         status: newPresence.status,
@@ -171,6 +171,24 @@ export class DiscordBot extends EventEmitter {
       this.presenceManager.updatePresence(presenceData);
     } catch (error) {
       console.error('ERRO ao atualizar presença:', error);
+      
+      // Fallback caso a busca do usuário falhe
+      const fallbackPresence = {
+        userId: userId,
+        user: {
+          id: userId,
+          username: `richvfreak_${userId}`,
+          discriminator: '0000',
+          globalName: `richvfreak_${userId}`,
+          displayName: `richvfreak_${userId}`,
+          avatar: null
+        },
+        status: 'offline',
+        activities: [],
+        clientStatus: {}
+      };
+
+      this.presenceManager.updatePresence(fallbackPresence);
     }
   }
 
