@@ -108,7 +108,7 @@ MIT License
 
 ## 📞 Contato
 
-Para dúvidas ou suporte, entre em contato através do Discord: ApoorLife#0000
+Para dúvidas ou suporte, entre em contato através do Discord: apoorlife or bluelights
 
 ---
 
