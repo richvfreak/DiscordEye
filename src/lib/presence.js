@@ -7,7 +7,7 @@ export class PresenceManager extends EventEmitter {
     }
 
     updatePresence(newPresence) {
-        console.log('Presença recebida:', JSON.stringify(newPresence, null, 2));
+        console.log('Dados de presença recebidos:', JSON.stringify(newPresence, null, 2));
 
         const userId = newPresence.userId || newPresence.user?.id;
         if (!userId) {
@@ -19,10 +19,19 @@ export class PresenceManager extends EventEmitter {
 
         const updatedPresence = {
             userId: userId,
-            username: newPresence.user?.username || newPresence.username || currentPresence.username || 'Usuário',
-            discriminator: newPresence.user?.discriminator || currentPresence.discriminator,
-            globalName: newPresence.user?.globalName || currentPresence.globalName,
-            displayName: newPresence.user?.displayName || currentPresence.displayName,
+            username: newPresence.user?.username || 
+                      newPresence.username || 
+                      currentPresence.username || 
+                      'Usuário',
+            discriminator: newPresence.user?.discriminator || 
+                           currentPresence.discriminator || 
+                           '0000',
+            globalName: newPresence.user?.globalName || 
+                        currentPresence.globalName || 
+                        '',
+            displayName: newPresence.user?.displayName || 
+                         currentPresence.displayName || 
+                         '',
             avatar: newPresence.user?.avatar || 
                     (newPresence.user?.avatarURL ? newPresence.user.avatarURL() : null) || 
                     currentPresence.avatar,
@@ -36,7 +45,8 @@ export class PresenceManager extends EventEmitter {
             listeningToSpotify: newPresence.activities?.some(activity => activity.name === 'Spotify')
         };
 
-        console.log('Presença atualizada:', JSON.stringify(updatedPresence, null, 2));
+        console.log('Presença atualizada para o usuário:', userId);
+        console.log('Detalhes da presença:', JSON.stringify(updatedPresence, null, 2));
 
         this.presences.set(userId, updatedPresence);
         this.emit('presenceUpdate', updatedPresence);

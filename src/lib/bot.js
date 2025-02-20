@@ -127,8 +127,24 @@ export class DiscordBot extends EventEmitter {
 
   async updatePresence(oldPresence, newPresence) {
     try {
-      const userId = newPresence.userId;
+      const userId = newPresence.userId || newPresence.user?.id;
+      console.log('Atualizando presença para userId:', userId);
+
+      // Se não temos o userId, não podemos continuar
+      if (!userId) {
+        console.error('Não foi possível identificar o ID do usuário');
+        return;
+      }
+
       const user = await this.client.users.fetch(userId);
+      console.log('Dados do usuário Discord:', JSON.stringify({
+        id: user.id,
+        username: user.username,
+        discriminator: user.discriminator,
+        globalName: user.globalName,
+        displayName: user.displayName,
+        avatar: user.avatar
+      }, null, 2));
 
       const presenceData = {
         userId: userId,
@@ -136,15 +152,16 @@ export class DiscordBot extends EventEmitter {
           id: user.id,
           username: user.username,
           discriminator: user.discriminator,
-          avatar: user.avatar,
-          avatarURL: user.avatarURL({ dynamic: true })
+          globalName: user.globalName,
+          displayName: user.displayName,
+          avatar: user.avatar
         },
         status: newPresence.status,
         activities: newPresence.activities,
         clientStatus: newPresence.clientStatus
       };
 
-      console.log('Dados de presença atualizados:', JSON.stringify(presenceData, null, 2));
+      console.log('Dados de presença a serem enviados:', JSON.stringify(presenceData, null, 2));
       this.emit('presenceUpdate', oldPresence, presenceData);
     } catch (error) {
       console.error('Erro ao atualizar presença:', error);
