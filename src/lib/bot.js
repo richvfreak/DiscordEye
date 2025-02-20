@@ -2,11 +2,15 @@ import { Client, GatewayIntentBits } from 'discord.js';
 import { EventEmitter } from 'events';
 
 export class DiscordBot extends EventEmitter {
-  constructor(token, intents) {
+  constructor(token, intents, presenceManager) {
     super();
     this.token = token;
     this.intents = intents;
-    this.client = new Client({
+    this.presenceManager = presenceManager;
+    
+    console.log('Intents configurados:', this.intents);
+    
+    this.client = new Client({ 
       intents: this.intents,
       fetchAllMembers: true,
       restRequestTimeout: 60000
@@ -111,7 +115,6 @@ export class DiscordBot extends EventEmitter {
             return member;
           }
         } catch (e) {
-          // Continua procurando em outros servidores
         }
       }
       console.log('Membro não encontrado em nenhum servidor');
@@ -128,7 +131,6 @@ export class DiscordBot extends EventEmitter {
       console.log('Atualizando presença para userId:', userId);
       console.log('Dados de newPresence recebidos:', JSON.stringify(newPresence, null, 2));
 
-      // Se não temos o userId, não podemos continuar
       if (!userId) {
         console.error('Não foi possível identificar o ID do usuário');
         return;
@@ -153,7 +155,7 @@ export class DiscordBot extends EventEmitter {
       };
 
       console.log('Dados de presença a serem enviados:', JSON.stringify(presenceData, null, 2));
-      this.emit('presenceUpdate', oldPresence, presenceData);
+      this.presenceManager.updatePresence(presenceData);
     } catch (error) {
       console.error('Erro ao atualizar presença:', error);
     }

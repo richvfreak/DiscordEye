@@ -1,52 +1,72 @@
-import express from 'express';
-import { DiscordBot } from './lib/bot.js';
-import { PresenceManager } from './lib/presence.js';
-import { ApiManager } from './lib/api.js';
-import { SocketManager } from './lib/socket.js';
 import dotenv from 'dotenv';
+import express from 'express';
+import http from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import { Client, GatewayIntentBits } from 'discord.js';
+
+import { DiscordBot } from './lib/bot.js';
+import { ApiManager } from './lib/api.js';
+import { PresenceManager } from './lib/presence.js';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
-import { GatewayIntentBits } from 'discord.js';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
-
-// Configuração CORS
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    next();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
 });
 
-const presenceManager = new PresenceManager();
+// Configuração correta dos Intents
 const intents = [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMembers,
   GatewayIntentBits.GuildPresences,
   GatewayIntentBits.Presences
 ];
-const bot = new DiscordBot(process.env.DISCORD_TOKEN, intents, presenceManager);
+
+const presenceManager = new PresenceManager();
 const apiManager = new ApiManager(presenceManager);
-const server = app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
+const bot = new DiscordBot(process.env.DISCORD_TOKEN, intents, presenceManager);
+
+// Configurações do Express e CORS
+app.use(cors());
+app.use(express.json());
+app.use('/api', apiManager.getRouter());
+
+// Configuração do Socket.IO
+io.on('connection', (socket) => {
+  console.log('Novo cliente conectado');
+  
+  socket.on('disconnect', () => {
+    console.log('Cliente desconectado');
+  });
 });
-const socketManager = new SocketManager(server, presenceManager);
 
 bot.on('presenceUpdate', (oldPresence, newPresence) => {
   presenceManager.updatePresence(newPresence);
 });
 
-app.use(express.json());
-app.use('/api', apiManager.getRouter());
-
 const swaggerDocument = YAML.load('./swagger.yaml');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-bot.start().then(() => {
-  console.log('Bot logado com sucesso');
-}).catch((error) => {
-  console.error('Erro ao logar o bot:', error);
-});
+// Inicialização do bot e servidor
+async function startServer() {
+  try {
+    await bot.start();
+    
+    const PORT = process.env.PORT || 3001;
+    server.listen(PORT, () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Erro ao iniciar o servidor:', error);
+  }
+}
+
+startServer();
