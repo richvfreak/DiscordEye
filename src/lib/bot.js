@@ -63,28 +63,13 @@ export class DiscordBot extends EventEmitter {
       this.emit('ready');
     });
 
-    this.client.on('presenceUpdate', (oldPresence, newPresence) => {
-      if (!newPresence) {
-        console.log('Presença nula recebida');
-        return;
+    this.client.on('presenceUpdate', async (oldPresence, newPresence) => {
+      try {
+        console.log('Evento de presenceUpdate disparado');
+        await this.updatePresence(oldPresence, newPresence);
+      } catch (error) {
+        console.error('Erro no evento de presenceUpdate:', error);
       }
-
-      console.log('Atualização de presença detectada:', {
-        userId: newPresence.userId,
-        status: newPresence.status,
-        activities: newPresence.activities?.map(a => ({
-          name: a.name,
-          type: a.type,
-          details: a.details,
-          state: a.state
-        }))
-      });
-      
-      this.emit('presenceUpdate', oldPresence, {
-        userId: newPresence.userId,
-        status: newPresence.status,
-        activities: newPresence.activities || []
-      });
     });
 
     this.client.on('error', error => {
@@ -154,21 +139,27 @@ export class DiscordBot extends EventEmitter {
       console.log('DEBUG: Dados do usuário Discord completos:', JSON.stringify({
         id: user.id,
         username: user.username,
-        discriminator: user.discriminator,
-        globalName: user.globalName,
-        displayName: user.displayName,
         tag: user.tag,
-        avatar: user.avatar
+        globalName: user.globalName,
+        displayName: user.displayName
       }, null, 2));
+
+      // Forçar captura do username com fallbacks
+      const username = 
+        user.username || 
+        user.globalName || 
+        user.displayName || 
+        user.tag.split('#')[0] || 
+        'richvfreak';
 
       const presenceData = {
         userId: userId,
         user: {
           id: user.id,
-          username: user.username,
-          discriminator: user.discriminator,
-          globalName: user.globalName,
-          displayName: user.displayName,
+          username: username,
+          discriminator: user.discriminator || '0000',
+          globalName: user.globalName || '',
+          displayName: user.displayName || '',
           avatar: user.avatar
         },
         status: newPresence.status,
