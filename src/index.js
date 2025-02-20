@@ -38,6 +38,8 @@ app.use('/api', apiManager.getRouter());
 const swaggerDocument = YAML.load('./swagger.yaml');
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-bot.login().then(() => {
-    console.log('Bot logado com sucesso');
+bot.start().then(() => {
+  console.log('Bot logado com sucesso');
+}).catch((error) => {
+  console.error('Erro ao logar o bot:', error);
 });
