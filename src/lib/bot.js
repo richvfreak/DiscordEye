@@ -125,6 +125,32 @@ export class DiscordBot extends EventEmitter {
     }
   }
 
+  async updatePresence(oldPresence, newPresence) {
+    try {
+      const userId = newPresence.userId;
+      const user = await this.client.users.fetch(userId);
+
+      const presenceData = {
+        userId: userId,
+        user: {
+          id: user.id,
+          username: user.username,
+          discriminator: user.discriminator,
+          avatar: user.avatar,
+          avatarURL: user.avatarURL({ dynamic: true })
+        },
+        status: newPresence.status,
+        activities: newPresence.activities,
+        clientStatus: newPresence.clientStatus
+      };
+
+      console.log('Dados de presença atualizados:', JSON.stringify(presenceData, null, 2));
+      this.emit('presenceUpdate', oldPresence, presenceData);
+    } catch (error) {
+      console.error('Erro ao atualizar presença:', error);
+    }
+  }
+
   async start() {
     try {
       await this.client.login(this.token);
