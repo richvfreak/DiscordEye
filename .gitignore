@@ -64,3 +64,6 @@ pids
 
 # Optional eslint cache
 .eslintcache
+
+# Portfolio
+portfolio/src/components/
