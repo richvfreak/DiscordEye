@@ -1,71 +1,64 @@
-import { Client, GatewayIntentBits } from 'discord.js';
+import { Client, GatewayIntentBits, ActivityType, Collection } from 'discord.js';
 import { EventEmitter } from 'events';
 
 export class DiscordBot extends EventEmitter {
   constructor(token, intents, presenceManager) {
     super();
     this.token = token;
-    
-    // Converter intents para BitField
-    this.intents = intents.map(intent => {
-      // Se já for um número, retornar direto
-      if (typeof intent === 'number') return intent;
-      
-      // Se for um intent do GatewayIntentBits, converter para número
-      if (typeof intent === 'object' && intent.valueOf) {
-        return intent.valueOf();
-      }
-      
-      return intent;
-    });
-
-    console.log('Intents processados:', this.intents);
-    
+    this.intents = this.processIntents(intents);
     this.presenceManager = presenceManager;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 5;
+    this.reconnectDelay = 5000; 
+    this.userCache = new Collection();
+    this.lastPresenceUpdate = new Map();
+    this.rateLimitDelay = 2000; 
     
     this.client = new Client({ 
       intents: this.intents,
       fetchAllMembers: true,
-      restRequestTimeout: 60000
+      restRequestTimeout: 60000,
+      presence: {
+        activities: [{
+          name: 'monitorando presenças',
+          type: ActivityType.Watching
+        }],
+        status: 'online'
+      }
     });
 
     this.setupEventHandlers();
   }
 
+  processIntents(intents) {
+    return intents.map(intent => {
+      if (typeof intent === 'number') return intent;
+      if (typeof intent === 'object' && intent.valueOf) {
+        return intent.valueOf();
+      }
+      return intent;
+    });
+  }
+
   setupEventHandlers() {
     this.client.on('ready', async () => {
       console.log('Bot conectado como:', this.client.user.tag);
-      
-      // Listar servidores onde o bot está
-      console.log('Servidores conectados:');
-      this.client.guilds.cache.forEach(async guild => {
-        console.log(`- ${guild.name} (${guild.id})`);
-        
-        // Buscar membros do servidor
-        try {
-          const members = await guild.members.fetch();
-          console.log(`Membros em ${guild.name}:`, members.size);
-          
-          // Emitir presença inicial para cada membro
-          members.forEach(member => {
-            console.log(`Presença inicial para ${member.user.tag}:`, member.presence);
-            this.emit('presenceUpdate', null, {
-              userId: member.id,
-              status: member.presence?.status || 'offline',
-              activities: member.presence?.activities || []
-            });
-          });
-        } catch (error) {
-          console.error(`Erro ao buscar membros de ${guild.name}:`, error);
-        }
-      });
-
-      this.emit('ready');
+      this.reconnectAttempts = 0; 
+      await this.updateBotStatus();
+      await this.initializePresences();
     });
 
     this.client.on('presenceUpdate', async (oldPresence, newPresence) => {
       try {
-        console.log('Evento de presenceUpdate disparado');
+        const userId = newPresence.userId || newPresence.user?.id;
+        
+        const now = Date.now();
+        const lastUpdate = this.lastPresenceUpdate.get(userId) || 0;
+        if (now - lastUpdate < this.rateLimitDelay) {
+          return;
+        }
+        this.lastPresenceUpdate.set(userId, now);
+
         await this.updatePresence(oldPresence, newPresence);
       } catch (error) {
         console.error('Erro no evento de presenceUpdate:', error);
@@ -75,26 +68,120 @@ export class DiscordBot extends EventEmitter {
     this.client.on('error', error => {
       console.error('Erro no bot:', error);
       this.emit('error', error);
+      this.attemptReconnect();
     });
 
-    this.client.on('guildCreate', guild => {
+    this.client.on('disconnect', () => {
+      console.warn('Bot desconectado');
+      this.attemptReconnect();
+    });
+
+    this.client.on('reconnecting', () => {
+      console.log('Tentando reconectar...');
+    });
+
+
+    this.client.on('guildCreate', async guild => {
       console.log(`Bot adicionado ao servidor: ${guild.name} (${guild.id})`);
+      await this.initializeGuildPresences(guild);
+      await this.updateBotStatus();
     });
 
-    this.client.on('guildMemberAdd', member => {
+    this.client.on('guildDelete', async guild => {
+      console.log(`Bot removido do servidor: ${guild.name} (${guild.id})`);
+      await this.updateBotStatus();
+    });
+
+    this.client.on('guildMemberAdd', async member => {
       console.log(`Novo membro ${member.user.tag} em ${member.guild.name}`);
+      await this.cacheUser(member.user);
       this.emit('presenceUpdate', null, {
         userId: member.id,
         status: member.presence?.status || 'offline',
         activities: member.presence?.activities || []
       });
     });
+
+    this.client.on('guildMemberRemove', member => {
+      console.log(`Membro ${member.user.tag} saiu de ${member.guild.name}`);
+    });
+
+    this.client.on('rateLimited', rateLimitInfo => {
+      console.warn('Rate limit atingido:', rateLimitInfo);
+    });
+  }
+
+  async updateBotStatus() {
+    try {
+      const totalServers = this.client.guilds.cache.size;
+      const totalMembers = this.client.guilds.cache.reduce((acc, guild) => acc + guild.memberCount, 0);
+      
+      await this.client.user.setPresence({
+        activities: [{
+          name: `${totalServers} servidores | ${totalMembers} membros`,
+          type: ActivityType.Watching
+        }],
+        status: 'online'
+      });
+    } catch (error) {
+      console.error('Erro ao atualizar status do bot:', error);
+    }
+  }
+
+  async initializePresences() {
+    console.log('Inicializando presenças de todos os servidores...');
+    for (const guild of this.client.guilds.cache.values()) {
+      await this.initializeGuildPresences(guild);
+    }
+  }
+
+  async initializeGuildPresences(guild) {
+    console.log(`Inicializando presenças para ${guild.name}...`);
+    try {
+      const members = await guild.members.fetch();
+      console.log(`${members.size} membros encontrados em ${guild.name}`);
+      
+      for (const member of members.values()) {
+        await this.cacheUser(member.user);
+        await this.updatePresence(null, {
+          userId: member.id,
+          status: member.presence?.status || 'offline',
+          activities: member.presence?.activities || []
+        });
+      }
+    } catch (error) {
+      console.error(`Erro ao inicializar presenças de ${guild.name}:`, error);
+    }
+  }
+
+  async cacheUser(user) {
+    if (!this.userCache.has(user.id)) {
+      this.userCache.set(user.id, {
+        id: user.id,
+        username: user.username,
+        discriminator: user.discriminator,
+        globalName: user.globalName,
+        displayName: user.displayName,
+        avatar: user.avatar,
+        lastUpdated: Date.now()
+      });
+    }
   }
 
   async getUser(userId) {
     try {
+      if (this.userCache.has(userId)) {
+        const cachedUser = this.userCache.get(userId);
+        if (Date.now() - cachedUser.lastUpdated > 3600000) {
+          const user = await this.client.users.fetch(userId);
+          await this.cacheUser(user);
+          return user;
+        }
+        return cachedUser;
+      }
+
       const user = await this.client.users.fetch(userId);
-      console.log('Usuário encontrado:', user.tag);
+      await this.cacheUser(user);
       return user;
     } catch (error) {
       console.error('Erro ao buscar usuário:', error);
@@ -109,13 +196,13 @@ export class DiscordBot extends EventEmitter {
         try {
           const member = await guild.members.fetch(userId);
           if (member) {
-            console.log(`Membro encontrado no servidor ${guild.name}`);
+            await this.cacheUser(member.user);
             return member;
           }
         } catch (e) {
+          continue;
         }
       }
-      console.log('Membro não encontrado em nenhum servidor');
       return null;
     } catch (error) {
       console.error('Erro ao buscar membro:', error);
@@ -126,70 +213,78 @@ export class DiscordBot extends EventEmitter {
   async updatePresence(oldPresence, newPresence) {
     try {
       const userId = newPresence.userId || newPresence.user?.id;
-      console.log('DEBUG: Atualizando presença para userId:', userId);
-      console.log('DEBUG: Dados de newPresence recebidos:', JSON.stringify(newPresence, null, 2));
-
-      // Se não temos o userId, não podemos continuar
       if (!userId) {
         console.error('ERRO: Não foi possível identificar o ID do usuário');
         return;
       }
 
-      const user = await this.client.users.fetch(userId);
-      console.log('DEBUG: Dados do usuário Discord completos:', JSON.stringify({
-        id: user.id,
-        username: user.username,
-        tag: user.tag,
-        globalName: user.globalName,
-        displayName: user.displayName
-      }, null, 2));
-
-      // Forçar username com fallbacks mais agressivos
-      const username = 
-        user.username || 
-        user.globalName || 
-        user.displayName || 
-        user.tag.split('#')[0] || 
-        `richvfreak_${userId}`;
+      let userData = this.userCache.get(userId);
+      if (!userData) {
+        const user = await this.getUser(userId);
+        if (!user) {
+          console.error('ERRO: Usuário não encontrado');
+          return;
+        }
+        userData = this.userCache.get(userId);
+      }
 
       const presenceData = {
         userId: userId,
         user: {
-          id: user.id,
-          username: username,
-          discriminator: user.discriminator || '0000',
-          globalName: user.globalName || username,
-          displayName: user.displayName || username,
-          avatar: user.avatar
+          id: userData.id,
+          username: userData.username || `user_${userId}`,
+          discriminator: userData.discriminator || '0000',
+          globalName: userData.globalName || userData.username,
+          displayName: userData.displayName || userData.username,
+          avatar: userData.avatar
         },
-        status: newPresence.status,
-        activities: newPresence.activities,
-        clientStatus: newPresence.clientStatus
+        status: newPresence.status || 'offline',
+        activities: this.processActivities(newPresence.activities),
+        clientStatus: newPresence.clientStatus || {},
+        lastUpdate: Date.now()
       };
 
-      console.log('DEBUG: Dados de presença a serem enviados:', JSON.stringify(presenceData, null, 2));
       this.presenceManager.updatePresence(presenceData);
     } catch (error) {
       console.error('ERRO ao atualizar presença:', error);
-      
-      // Fallback caso a busca do usuário falhe
-      const fallbackPresence = {
-        userId: userId,
-        user: {
-          id: userId,
-          username: `richvfreak_${userId}`,
-          discriminator: '0000',
-          globalName: `richvfreak_${userId}`,
-          displayName: `richvfreak_${userId}`,
-          avatar: null
-        },
-        status: 'offline',
-        activities: [],
-        clientStatus: {}
-      };
-
-      this.presenceManager.updatePresence(fallbackPresence);
     }
+  }
+
+  processActivities(activities = []) {
+    return activities.map(activity => ({
+      name: activity.name,
+      type: activity.type,
+      details: activity.details,
+      state: activity.state,
+      timestamps: activity.timestamps,
+      assets: activity.assets ? {
+        large_image: activity.assets.largeImage,
+        large_text: activity.assets.largeText,
+        small_image: activity.assets.smallImage,
+        small_text: activity.assets.smallText
+      } : null,
+      application_id: activity.applicationId
+    }));
+  }
+
+  async attemptReconnect() {
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.error('Número máximo de tentativas de reconexão atingido');
+      this.emit('reconnectFailed');
+      return;
+    }
+
+    this.reconnectAttempts++;
+    console.log(`Tentativa de reconexão ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+
+    setTimeout(async () => {
+      try {
+        await this.start();
+      } catch (error) {
+        console.error('Erro na tentativa de reconexão:', error);
+        await this.attemptReconnect();
+      }
+    }, this.reconnectDelay * this.reconnectAttempts);
   }
 
   async start() {
@@ -203,6 +298,8 @@ export class DiscordBot extends EventEmitter {
 
   async stop() {
     try {
+      this.userCache.clear();
+      this.lastPresenceUpdate.clear();
       await this.client.destroy();
     } catch (error) {
       console.error('Erro ao parar bot:', error);
